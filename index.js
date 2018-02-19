@@ -11,17 +11,45 @@ Promise.resolve()
   .then(() => app.listen(PORT, () => console.log(`App listening on port ${PORT}`)))
   .catch((err) => { if (NODE_ENV === 'development') console.error(err.stack); });
 
+
+  
+  
 // ROUTES
 app.get('/films/:id/recommendations', getFilmRecommendations);
 
 // ROUTE HANDLER
 function getFilmRecommendations(req, res) {
+  var film_id = req.params.id 
   res.status(500).send('Not Implemented');
+  
 }
+
+// First get all films with the same genre
+// Check release date of the film, makes sure it's within 15 years, before or after the film 
+// then those with minimum of 5 revies
+// then only those that are greater than 4 stars average rating
+// sort based on id
+// do offset by pagination - still gotta figure out what that means exactly 
+// maybe that we have a limit of how many results are returned and paginate them based
+// on developers criteria
+// figure out how to process missing routes and client/server failure
+
+// Request film reviews based on film_id passed by API GET query
+request("http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1?films=1", function(error, response, body) {
+	var apiRes = JSON.parse(body)[0];	
+	var avg = 0;
+	for (var i = 0; i < apiRes.reviews.length; i++) {
+		avg += (apiRes.reviews[i].rating);
+	}; 
+	console.log(avg/(apiRes.reviews.length));
+	console.log(apiRes.reviews);
+	// get reviews by film id, if rating > 4 then goes on in the filtering process
+});
+
 
 module.exports = app;
 
-
+// Sequelize model definitions
 var  connection = new Sequelize('database', 'null', 'null', {
 	host: "localhost", //your server
 	port: 3000, //server port
@@ -133,8 +161,6 @@ var Artists = connection.define('artists', {
 			freezeTableName: true
 	}	
 );
-
-
 
 
 connection.sync().then( function () {
