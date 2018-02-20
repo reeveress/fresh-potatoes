@@ -2,11 +2,13 @@ const sqlite = require('sqlite'),
       Sequelize = require('sequelize'),
       request = require('request'),
       express = require('express'),
-      app = express();
+      app = express(),
+      moment = require('moment');
 
 const { PORT=3000, NODE_ENV='development', DB_PATH='./db/database.db' } = process.env;
 
-const Op = Sequelize.Op;
+
+const msecIn15Years = 15 * 3.154e7 * 1000;
 
 // START SERVER
 Promise.resolve()
@@ -23,19 +25,6 @@ function getFilmRecommendations(req, res) {
 	var film_id = req.params.id 
 	res.status(500).send('Not Implemented');
 
-	// Request film reviews based on film_id passed by API GET query
-	request("http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1?films=" + film_id, function(error, response, body) {
-		var apiRes = JSON.parse(body)[0];	
-		var avg;
-		var sum = 0;
-		for (var i = 0; i < apiRes.reviews.length; i++) {
-			sum += (apiRes.reviews[i].rating);
-		}; 
-		avg = sum/(apiRes.reviews.length);
-		console.log(avg);
-		console.log(apiRes.reviews);
-		// get reviews by film id, if rating > 4 then goes on in the filtering process
-	});
 }
 // First get all films with the same genre
 // Check release date of the film, makes sure it's within 15 years, before or after the film 
@@ -170,15 +159,36 @@ var Artists = connection.define('artists', {
 var film_id = 7264;
 	connection.sync().then( function () {
 		Films.findById(film_id).then( function (films) {
+			const Op = Sequelize.Op;
 			var film_genre = (films.genre_id);
-			console.log(films.genre_id);
+			console.log((films.release_date));
+			film_date = (Date.parse(films.release_date));
+			console.log(Sequelize.NOW);
+				
 			Films.findAll({
 				where: {
-					genre_id: film_genre
-
+					genre_id: film_genre,
+					release_date: {
+					[Op.gte]: moment(film_date).subtract(15, 'years').toDate(),
+					[Op.lte]: moment(film_date).add(15, 'years').toDate()
+					}
 				       }	
 			}).then( function ( films ) {
-			console.log("Number of records with genre 19:" + films.length);
+				
+			// Request film reviews based on film_id passed by API GET query
+			request("http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1?films=" + film_id, function(error, response, body) {
+				var apiRes = JSON.parse(body)[0];	
+				var avg;
+				var sum = 0;
+				for (var i = 0; i < apiRes.reviews.length; i++) {
+					sum += (apiRes.reviews[i].rating);
+				}; 
+				avg = sum/(apiRes.reviews.length);
+				console.log(avg);
+				console.log(apiRes.reviews);
+				// get reviews by film id, if rating > 4 then goes on in the filtering process
+			});
+			console.log("Number of records with genre 19 and within 15 years of release date:" + films.length);
 			});
 		});
 		
